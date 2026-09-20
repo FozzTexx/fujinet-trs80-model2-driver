@@ -16,9 +16,10 @@
 ; system's "LA" (Last Address used by CP/M) option or equivalent.
 ; ======================================================================
 
+	include "tsr.inc"
+
         ORG $0100
 
-RESIDENT_BASE:	EQU $FC00       ; MUST MATCH tsr_resident.z80
 RESIDENT_SIZE:	EQU $00A0       ; bytes to copy (through the DPB's
                                 ; real data - DIRBUF/CSV/ALV are pure
                                 ; scratch space and need no content
@@ -192,33 +193,34 @@ patch_one_vector:
 ; (free_drive), or $FF if every drive 0-15 is already in use.
 ; ----------------------------------------------------------------
 find_free_drive:
-        ld b,0
-fd_loop:
-        push bc
-        ld hl,(bios_base)
-        ld de,JT_SELDSK
-        add hl,de
-        inc hl
-        ld e,(hl)
-        inc hl
-        ld d,(hl)               ; DE = the real SELDSK entry address
-        pop bc
-        push bc
-        ld c,b                  ; C = candidate drive number
-        ex de,hl                ; HL = SELDSK entry address
-        call call_hl
-        ld a,h
-        or l                    ; test the returned DPH pointer
-        pop bc
-        jr z,fd_found           ; HL==0 -> unconfigured -> claim it
-        ld a,b
-        inc a
-        cp 16
-        jr nc,fd_none
-        ld b,a
-        jr fd_loop
-fd_found:
-        ld a,b
+;;         ld b,0
+;; fd_loop:
+;;         push bc
+;;         ld hl,(bios_base)
+;;         ld de,JT_SELDSK
+;;         add hl,de
+;;         inc hl
+;;         ld e,(hl)
+;;         inc hl
+;;         ld d,(hl)               ; DE = the real SELDSK entry address
+;;         pop bc
+;;         push bc
+;;         ld c,b                  ; C = candidate drive number
+;;         ex de,hl                ; HL = SELDSK entry address
+;;         call call_hl
+;;         ld a,h
+;;         or l                    ; test the returned DPH pointer
+;;         pop bc
+;;         jr z,fd_found           ; HL==0 -> unconfigured -> claim it
+;;         ld a,b
+;;         inc a
+;;         cp 16
+;;         jr nc,fd_none
+;;         ld b,a
+;;         jr fd_loop
+;; fd_found:
+;;         ld a,b
+	ld a,2
         ld (free_drive),a
         ret
 fd_none:
@@ -269,7 +271,7 @@ msg_done:       db "Installed.",13,10,'$'
 ; Regenerate this block if you change tsr_resident.z80.
 ; ======================================================================
 resident_image:
-	incbin	"fujitsr.com"
+	incbin	"handler.com"
 ;;         db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 ;;         db $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$e9,$79
 ;;         db $21,$00,$f0,$be,$20,$09,$3e,$01,$32,$01,$f0,$21

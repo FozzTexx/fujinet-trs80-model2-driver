@@ -15,7 +15,7 @@
 ; in this file needs to change if you do.
 ; ======================================================================
 
-RESIDENT_BASE:	EQU $FC00       ; <-- ADJUST to your reserved memory
+	include "tsr.inc"
 
         ORG RESIDENT_BASE
 

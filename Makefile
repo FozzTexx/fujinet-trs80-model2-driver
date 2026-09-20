@@ -1,7 +1,9 @@
-fujitsr2.com: installer.asm fujitsr.com
+fujitsr2.com: installer.asm handler.com
 	z80asm -o $@ --list=$(basename $<).lst $<
 
-fujitsr.com: fujitsr.asm
+handler.com: handler.asm
+
+findlet.com: findlet.asm
 
 %.com: %.asm
 	z80asm -o $@ --list=$(basename $<).lst $<
