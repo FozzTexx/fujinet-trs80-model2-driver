@@ -68,6 +68,11 @@ our_seldsk:
         ld hl,our_drive
         cp (hl)
         jr nz,seldsk_not_ours
+
+	call init_bios_vector
+        ld de,msg_handling
+        call print_string
+
         ld a,1
         ld (mine_flag),a
         ld a,c                  ; fastcall wants the drive number in A
@@ -168,36 +173,40 @@ write_ours:
         call _bios_write        ; returns A = status directly
         ret
 
-; ======================================================================
-; Standard CP/M 2.2 DPH (Disk Parameter Header) and DPB (Disk
-; Parameter Block). ADJUST THE DPB VALUES to match your actual custom
-; device's real geometry - the numbers below are placeholders only.
-; ======================================================================
+msg_handling:	db "HANDLING",13,10,'$'
 
-our_dph:
-        dw 0            ; XLT  - sector translate table (0 = none)
-        dw 0,0,0        ; scratch (BC, DE, HL) - used by BDOS itself
-        dw our_dirbuf   ; DIRBUF - 128-byte scratch directory buffer
-        dw our_dpb      ; DPB - this drive's parameter block, below
-        dw our_csv      ; CSV - checksum vector
-        dw our_alv      ; ALV - allocation vector
+	include "print_string.asm"
+	
+;; ; ======================================================================
+;; ; Standard CP/M 2.2 DPH (Disk Parameter Header) and DPB (Disk
+;; ; Parameter Block). ADJUST THE DPB VALUES to match your actual custom
+;; ; device's real geometry - the numbers below are placeholders only.
+;; ; ======================================================================
 
-; PLACEHOLDER geometry - replace every value with your real device's
-our_dpb:
-        dw 26           ; SPT - sectors per (logical 128-byte) track
-        db 3            ; BSH - block shift factor
-        db 7            ; BLM - block mask
-        db 0            ; EXM - extent mask
-        dw 242          ; DSM - max block number
-        dw 63           ; DRM - max directory entry number
-        db 0C0h         ; AL0 - directory allocation bitmap
-        db 0            ; AL1
-        dw 0            ; CKS - directory check vector size (0 = fixed
-                        ; disk, not checked)
-        dw 0            ; OFF - reserved (system) tracks
+;; our_dph:
+;;         dw 0            ; XLT  - sector translate table (0 = none)
+;;         dw 0,0,0        ; scratch (BC, DE, HL) - used by BDOS itself
+;;         dw our_dirbuf   ; DIRBUF - 128-byte scratch directory buffer
+;;         dw our_dpb      ; DPB - this drive's parameter block, below
+;;         dw our_csv      ; CSV - checksum vector
+;;         dw our_alv      ; ALV - allocation vector
 
-our_dirbuf:     ds 128
-our_csv:        ds 16   ; size depends on your real DRM
-our_alv:        ds 31   ; size depends on your real DSM
+;; ; PLACEHOLDER geometry - replace every value with your real device's
+;; our_dpb:
+;;         dw 26           ; SPT - sectors per (logical 128-byte) track
+;;         db 3            ; BSH - block shift factor
+;;         db 7            ; BLM - block mask
+;;         db 0            ; EXM - extent mask
+;;         dw 242          ; DSM - max block number
+;;         dw 63           ; DRM - max directory entry number
+;;         db 0C0h         ; AL0 - directory allocation bitmap
+;;         db 0            ; AL1
+;;         dw 0            ; CKS - directory check vector size (0 = fixed
+;;                         ; disk, not checked)
+;;         dw 0            ; OFF - reserved (system) tracks
+
+;; our_dirbuf:     ds 128
+;; our_csv:        ds 16   ; size depends on your real DRM
+;; our_alv:        ds 31   ; size depends on your real DSM
 
 resident_end:

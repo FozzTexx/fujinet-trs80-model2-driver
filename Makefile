@@ -22,3 +22,5 @@ $(HANDLER).asm: tsr.inc
 	$(AS) -l -o=$@ $<
 %.o: %.c
 	zcc +cpm -c -o $@ $<
+
+contest.com: contest.asm
