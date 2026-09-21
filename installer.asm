@@ -20,10 +20,10 @@
 
         ORG $0100
 
-RESIDENT_SIZE:	EQU $00A0       ; bytes to copy (through the DPB's
-                                ; real data - DIRBUF/CSV/ALV are pure
-                                ; scratch space and need no content
-                                ; copied, only reserved memory)
+;; RESIDENT_SIZE:	EQU $00A0       ; bytes to copy (through the DPB's
+;;                                 ; real data - DIRBUF/CSV/ALV are pure
+;;                                 ; scratch space and need no content
+;;                                 ; copied, only reserved memory)
 
 ; ---- offsets within the resident image (fixed, independent of
 ;      RESIDENT_BASE - from tsr_resident.z80's own assembly) ----
@@ -35,13 +35,14 @@ OFF_ORIG_SETSEC:	EQU $000E
 OFF_ORIG_SETDMA:	EQU $0010
 OFF_ORIG_READ:	EQU $0012
 OFF_ORIG_WRITE:	EQU $0014
-OFF_OUR_HOME:	EQU $0032
-OFF_OUR_SELDSK:	EQU $0017
-OFF_OUR_SETTRK:	EQU $0043
-OFF_OUR_SETSEC:	EQU $0052
-OFF_OUR_SETDMA:	EQU $0061
-OFF_OUR_READ:	EQU $0069
-OFF_OUR_WRITE:	EQU $0075
+
+OFF_OUR_HOME:	EQU 0*3
+OFF_OUR_SELDSK:	EQU 1*3
+OFF_OUR_SETTRK:	EQU 2*3
+OFF_OUR_SETSEC:	EQU 3*3
+OFF_OUR_SETDMA:	EQU 4*3
+OFF_OUR_READ:	EQU 5*3
+OFF_OUR_WRITE:	EQU 6*3
 
 ; ---- BIOS jump-table entry byte offsets (each entry = 3-byte JP) ----
 JT_HOME:	EQU 8*3
@@ -286,3 +287,4 @@ resident_image:
 ;;         db $00,$00,$00,$00,$00,$a0,$f0,$91,$f0,$20,$f1,$30
 ;;         db $f1,$1a,$00,$03,$07,$00,$f2,$00,$3f,$00,$c0,$00
 ;;         db $00,$00,$00,$00
+RESIDENT_SIZE:	 EQU $ - resident_image

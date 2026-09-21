@@ -31,6 +31,77 @@
 
         ORG RESIDENT_BASE
 
+; ======================================================================
+; FIXED JUMP TABLE - this is the entire ABI the installer depends on.
+; Every entry is a 3-byte "JP" at a fixed index * 3 offset from
+; RESIDENT_BASE, in this exact order, forever. Everything below the
+; table (routines, variables, their order, their sizes) is free to
+; change without touching the installer at all - it only ever calls
+; through these 15 fixed slots, the same way real CP/M BIOS code only
+; ever gets called through the real jump table rather than by knowing
+; internal BIOS addresses.
+;
+;   index  purpose                              called by
+;   -----  -----------------------------------   ---------
+;    0     our_home     (BIOS-facing hook)        real BIOS, after patch
+;    1     our_seldsk   (BIOS-facing hook)        real BIOS, after patch
+;    2     our_settrk   (BIOS-facing hook)        real BIOS, after patch
+;    3     our_setsec   (BIOS-facing hook)        real BIOS, after patch
+;    4     our_setdma   (BIOS-facing hook)        real BIOS, after patch
+;    5     our_read     (BIOS-facing hook)        real BIOS, after patch
+;    6     our_write    (BIOS-facing hook)        real BIOS, after patch
+;    7     set_our_drive     (IN: A = drive #)    installer, once
+;    8     set_orig_home     (IN: HL = vector)    installer, once
+;    9     set_orig_seldsk   (IN: HL = vector)    installer, once
+;   10     set_orig_settrk   (IN: HL = vector)    installer, once
+;   11     set_orig_setsec   (IN: HL = vector)    installer, once
+;   12     set_orig_setdma   (IN: HL = vector)    installer, once
+;   13     set_orig_read     (IN: HL = vector)    installer, once
+;   14     set_orig_write    (IN: HL = vector)    installer, once
+; ======================================================================
+
+jump_table:
+        jp our_home             ; index 0
+        jp our_seldsk           ; index 1
+        jp our_settrk           ; index 2
+        jp our_setsec           ; index 3
+        jp our_setdma           ; index 4
+        jp our_read             ; index 5
+        jp our_write            ; index 6
+        jp set_our_drive        ; index 7
+        jp set_orig_home        ; index 8
+        jp set_orig_seldsk      ; index 9
+        jp set_orig_settrk      ; index 10
+        jp set_orig_setsec      ; index 11
+        jp set_orig_setdma      ; index 12
+        jp set_orig_read        ; index 13
+        jp set_orig_write       ; index 14
+
+set_our_drive:
+        ld (our_drive),a
+        ret
+set_orig_home:
+        ld (orig_home),hl
+        ret
+set_orig_seldsk:
+        ld (orig_seldsk),hl
+        ret
+set_orig_settrk:
+        ld (orig_settrk),hl
+        ret
+set_orig_setsec:
+        ld (orig_setsec),hl
+        ret
+set_orig_setdma:
+        ld (orig_setdma),hl
+        ret
+set_orig_read:
+        ld (orig_read),hl
+        ret
+set_orig_write:
+        ld (orig_write),hl
+        ret
+
         EXTERN _bios_home
         EXTERN _bios_seldsk
         EXTERN _bios_settrk
@@ -68,11 +139,6 @@ our_seldsk:
         ld hl,our_drive
         cp (hl)
         jr nz,seldsk_not_ours
-
-	call init_bios_vector
-        ld de,msg_handling
-        call print_string
-
         ld a,1
         ld (mine_flag),a
         ld a,c                  ; fastcall wants the drive number in A
@@ -173,40 +239,36 @@ write_ours:
         call _bios_write        ; returns A = status directly
         ret
 
-msg_handling:	db "HANDLING",13,10,'$'
+; ======================================================================
+; Standard CP/M 2.2 DPH (Disk Parameter Header) and DPB (Disk
+; Parameter Block). ADJUST THE DPB VALUES to match your actual custom
+; device's real geometry - the numbers below are placeholders only.
+; ======================================================================
 
-	include "print_string.asm"
-	
-;; ; ======================================================================
-;; ; Standard CP/M 2.2 DPH (Disk Parameter Header) and DPB (Disk
-;; ; Parameter Block). ADJUST THE DPB VALUES to match your actual custom
-;; ; device's real geometry - the numbers below are placeholders only.
-;; ; ======================================================================
+our_dph:
+        dw 0            ; XLT  - sector translate table (0 = none)
+        dw 0,0,0        ; scratch (BC, DE, HL) - used by BDOS itself
+        dw our_dirbuf   ; DIRBUF - 128-byte scratch directory buffer
+        dw our_dpb      ; DPB - this drive's parameter block, below
+        dw our_csv      ; CSV - checksum vector
+        dw our_alv      ; ALV - allocation vector
 
-;; our_dph:
-;;         dw 0            ; XLT  - sector translate table (0 = none)
-;;         dw 0,0,0        ; scratch (BC, DE, HL) - used by BDOS itself
-;;         dw our_dirbuf   ; DIRBUF - 128-byte scratch directory buffer
-;;         dw our_dpb      ; DPB - this drive's parameter block, below
-;;         dw our_csv      ; CSV - checksum vector
-;;         dw our_alv      ; ALV - allocation vector
+; PLACEHOLDER geometry - replace every value with your real device's
+our_dpb:
+        dw 26           ; SPT - sectors per (logical 128-byte) track
+        db 3            ; BSH - block shift factor
+        db 7            ; BLM - block mask
+        db 0            ; EXM - extent mask
+        dw 242          ; DSM - max block number
+        dw 63           ; DRM - max directory entry number
+        db 0C0h         ; AL0 - directory allocation bitmap
+        db 0            ; AL1
+        dw 0            ; CKS - directory check vector size (0 = fixed
+                        ; disk, not checked)
+        dw 0            ; OFF - reserved (system) tracks
 
-;; ; PLACEHOLDER geometry - replace every value with your real device's
-;; our_dpb:
-;;         dw 26           ; SPT - sectors per (logical 128-byte) track
-;;         db 3            ; BSH - block shift factor
-;;         db 7            ; BLM - block mask
-;;         db 0            ; EXM - extent mask
-;;         dw 242          ; DSM - max block number
-;;         dw 63           ; DRM - max directory entry number
-;;         db 0C0h         ; AL0 - directory allocation bitmap
-;;         db 0            ; AL1
-;;         dw 0            ; CKS - directory check vector size (0 = fixed
-;;                         ; disk, not checked)
-;;         dw 0            ; OFF - reserved (system) tracks
-
-;; our_dirbuf:     ds 128
-;; our_csv:        ds 16   ; size depends on your real DRM
-;; our_alv:        ds 31   ; size depends on your real DSM
+our_dirbuf:     ds 128
+our_csv:        ds 16   ; size depends on your real DRM
+our_alv:        ds 31   ; size depends on your real DSM
 
 resident_end:
