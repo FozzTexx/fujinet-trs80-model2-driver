@@ -18,6 +18,7 @@ $(DISK_OBJ): disk.h fuji_bus_call.h
 $(FUJIBUS_OBJ): fuji_bus_call.h portio.h
 $(PORTIO_OBJ): portio.inc
 $(HANDLER).asm: tsr.inc
+$(INSTALLER_OBJ): installer.asm tsr.inc $(HANDLER).com
 
 %.com: %.asm
 	$(CC) $(CFLAGS) -o $@ $^
