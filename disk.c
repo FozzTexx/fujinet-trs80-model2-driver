@@ -2,6 +2,9 @@
 #include "cpm_dph.h"
 #include "fuji_bus_call.h"
 
+extern uint8_t our_drive;
+extern void print_string(uint8_t *str) __z88dk_fastcall;
+
 static struct CPM_DPB current_dpb = {
     .spt = 26,   /* 26 logical sectors per track */
     .bsh = 3,    /* Block shift factor: 3 (translates to 1KB allocation blocks) */
@@ -52,7 +55,8 @@ void bios_home(void)
 
 void *bios_seldsk(uint8_t drive)
 {
-  current_drive = drive;
+  print_string("FUJI SELDSK\r\n$");
+  current_drive = drive - our_drive;
   return &current_dph;
 }
 
@@ -77,7 +81,7 @@ uint8_t bios_read(void)
 
 
   return !fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
-                        DISKCMD_READ, FUJI_FIELD_C1234,
+                        DISKCMD_READ, FUJI_FIELD_C1234 | FUJI_FIELD_REPLY,
                         NATIVE_SPLIT_U32(sector),
                         dma_buffer, SECTOR_SIZE);
 }
@@ -88,7 +92,7 @@ uint8_t bios_write(uint8_t write_type)
 
 
   return !fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
-                        DISKCMD_WRITE, FUJI_FIELD_C1234,
+                        DISKCMD_WRITE, FUJI_FIELD_C1234 | FUJI_FIELD_DATA,
                         NATIVE_SPLIT_U32(sector),
                         dma_buffer, SECTOR_SIZE);
 }

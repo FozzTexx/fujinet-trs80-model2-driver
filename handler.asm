@@ -29,6 +29,8 @@
 
 	include	"tsr.inc"
 
+	public _our_drive
+
         ORG RESIDENT_BASE
 
 ; ======================================================================
@@ -72,7 +74,7 @@ jump_table:
 ; ----------------------------------------------------------------
 ; Saved state - filled in once by the installer
 ; ----------------------------------------------------------------
-our_drive:      db 0            ; which drive letter we claimed (0=A:)
+_our_drive:     db 0            ; which drive letter we claimed (0=A:)
 mine_flag:      db 0            ; nonzero if the CURRENTLY SELECTED
                                 ; drive is ours
 
@@ -137,7 +139,7 @@ call_hl:
 ; ----------------------------------------------------------------
 our_seldsk:
         ld a,c
-        ld hl,our_drive
+        ld hl,_our_drive
         cp (hl)
         jr nz,seldsk_not_ours
         ld a,1

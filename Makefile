@@ -6,13 +6,14 @@ PORTIO_OBJ = port_getbuf_slip_dual.o port_getc_timeout.o port_init.o port_putbuf
 	     port_putc.o
 FUJIBUS_OBJ = fuji_bus_call.o
 DISK_OBJ = disk.o
+PRINT_OBJ = print_string.o
 HANDLER = handler
 INSTALLER_OBJ = installer.o
 
 fujitsr2.com: $(INSTALLER_OBJ) $(HANDLER).com tsr.inc
 	$(CC) $(CFLAGS) -o=$@ $<
 
-$(HANDLER).com: $(HANDLER).asm $(PORTIO_OBJ) $(FUJIBUS_OBJ) $(DISK_OBJ)
+$(HANDLER).com: $(HANDLER).asm $(PORTIO_OBJ) $(FUJIBUS_OBJ) $(DISK_OBJ) $(PRINT_OBJ)
 
 $(DISK_OBJ): disk.h fuji_bus_call.h
 $(FUJIBUS_OBJ): fuji_bus_call.h portio.h
