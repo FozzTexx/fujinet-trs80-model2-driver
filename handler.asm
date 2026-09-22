@@ -68,47 +68,6 @@ jump_table:
         jp our_setdma           ; index 4
         jp our_read             ; index 5
         jp our_write            ; index 6
-        jp set_our_drive        ; index 7
-        jp set_orig_home        ; index 8
-        jp set_orig_seldsk      ; index 9
-        jp set_orig_settrk      ; index 10
-        jp set_orig_setsec      ; index 11
-        jp set_orig_setdma      ; index 12
-        jp set_orig_read        ; index 13
-        jp set_orig_write       ; index 14
-
-set_our_drive:
-        ld (our_drive),a
-        ret
-set_orig_home:
-        ld (orig_home),hl
-        ret
-set_orig_seldsk:
-        ld (orig_seldsk),hl
-        ret
-set_orig_settrk:
-        ld (orig_settrk),hl
-        ret
-set_orig_setsec:
-        ld (orig_setsec),hl
-        ret
-set_orig_setdma:
-        ld (orig_setdma),hl
-        ret
-set_orig_read:
-        ld (orig_read),hl
-        ret
-set_orig_write:
-        ld (orig_write),hl
-        ret
-
-        EXTERN _bios_home
-        EXTERN _bios_seldsk
-        EXTERN _bios_settrk
-        EXTERN _bios_setsec
-        EXTERN _bios_setdma
-        EXTERN _bios_read
-        EXTERN _bios_write
 
 ; ----------------------------------------------------------------
 ; Saved state - filled in once by the installer
@@ -124,6 +83,48 @@ orig_setsec:    dw 0            ; drives, floppies, etc.)
 orig_setdma:    dw 0
 orig_read:      dw 0
 orig_write:     dw 0
+
+;;         jp set_our_drive        ; index 7
+;;         jp set_orig_home        ; index 8
+;;         jp set_orig_seldsk      ; index 9
+;;         jp set_orig_settrk      ; index 10
+;;         jp set_orig_setsec      ; index 11
+;;         jp set_orig_setdma      ; index 12
+;;         jp set_orig_read        ; index 13
+;;         jp set_orig_write       ; index 14
+
+;; set_our_drive:
+;;         ld (our_drive),a
+;;         ret
+;; set_orig_home:
+;;         ld (orig_home),hl
+;;         ret
+;; set_orig_seldsk:
+;;         ld (orig_seldsk),hl
+;;         ret
+;; set_orig_settrk:
+;;         ld (orig_settrk),hl
+;;         ret
+;; set_orig_setsec:
+;;         ld (orig_setsec),hl
+;;         ret
+;; set_orig_setdma:
+;;         ld (orig_setdma),hl
+;;         ret
+;; set_orig_read:
+;;         ld (orig_read),hl
+;;         ret
+;; set_orig_write:
+;;         ld (orig_write),hl
+;;         ret
+
+        EXTERN _bios_home
+        EXTERN _bios_seldsk
+        EXTERN _bios_settrk
+        EXTERN _bios_setsec
+        EXTERN _bios_setdma
+        EXTERN _bios_read
+        EXTERN _bios_write
 
 ; ----------------------------------------------------------------
 ; call_hl - standard "call whatever address is in HL" idiom
@@ -245,30 +246,30 @@ write_ours:
 ; device's real geometry - the numbers below are placeholders only.
 ; ======================================================================
 
-our_dph:
-        dw 0            ; XLT  - sector translate table (0 = none)
-        dw 0,0,0        ; scratch (BC, DE, HL) - used by BDOS itself
-        dw our_dirbuf   ; DIRBUF - 128-byte scratch directory buffer
-        dw our_dpb      ; DPB - this drive's parameter block, below
-        dw our_csv      ; CSV - checksum vector
-        dw our_alv      ; ALV - allocation vector
+;; our_dph:
+;;         dw 0            ; XLT  - sector translate table (0 = none)
+;;         dw 0,0,0        ; scratch (BC, DE, HL) - used by BDOS itself
+;;         dw our_dirbuf   ; DIRBUF - 128-byte scratch directory buffer
+;;         dw our_dpb      ; DPB - this drive's parameter block, below
+;;         dw our_csv      ; CSV - checksum vector
+;;         dw our_alv      ; ALV - allocation vector
 
-; PLACEHOLDER geometry - replace every value with your real device's
-our_dpb:
-        dw 26           ; SPT - sectors per (logical 128-byte) track
-        db 3            ; BSH - block shift factor
-        db 7            ; BLM - block mask
-        db 0            ; EXM - extent mask
-        dw 242          ; DSM - max block number
-        dw 63           ; DRM - max directory entry number
-        db 0C0h         ; AL0 - directory allocation bitmap
-        db 0            ; AL1
-        dw 0            ; CKS - directory check vector size (0 = fixed
-                        ; disk, not checked)
-        dw 0            ; OFF - reserved (system) tracks
+;; ; PLACEHOLDER geometry - replace every value with your real device's
+;; our_dpb:
+;;         dw 26           ; SPT - sectors per (logical 128-byte) track
+;;         db 3            ; BSH - block shift factor
+;;         db 7            ; BLM - block mask
+;;         db 0            ; EXM - extent mask
+;;         dw 242          ; DSM - max block number
+;;         dw 63           ; DRM - max directory entry number
+;;         db 0C0h         ; AL0 - directory allocation bitmap
+;;         db 0            ; AL1
+;;         dw 0            ; CKS - directory check vector size (0 = fixed
+;;                         ; disk, not checked)
+;;         dw 0            ; OFF - reserved (system) tracks
 
-our_dirbuf:     ds 128
-our_csv:        ds 16   ; size depends on your real DRM
-our_alv:        ds 31   ; size depends on your real DSM
+;; our_dirbuf:     ds 128
+;; our_csv:        ds 16   ; size depends on your real DRM
+;; our_alv:        ds 31   ; size depends on your real DSM
 
 resident_end:
