@@ -2,8 +2,32 @@
 #include "cpm_dph.h"
 #include "fuji_bus_call.h"
 #include "print.h"
+#include <intrinsic.h>
+#include <stdint.h>
+#include <string.h>
+
+#define SD_SECTOR_SIZE 128
+#define DD_SECTOR_SIZE 512
+#define MAX_BLOCK_SIZE DD_SECTOR_SIZE
+#define TRACK_0_NUMSEC 26
+
+#define be16toh(x) intrinsic_swap_endian_16(x)
+#define htobe16(x) intrinsic_swap_endian_16(x)
 
 extern uint8_t our_drive;
+
+typedef struct {
+  uint8_t num_tracks;
+  uint8_t step_rate;
+  uint16_t sectors_per_track; // big endian
+  uint8_t num_sides;
+  uint8_t density;
+  uint16_t sector_size; // big endian
+  uint8_t drive_present;
+  uint8_t reserved1;
+  uint8_t reserved2;
+  uint8_t reserved3;
+} _percomBlock;
 
 static struct CPM_DPB current_dpb = {
     .spt = 26,   /* 26 logical sectors per track */
@@ -18,15 +42,25 @@ static struct CPM_DPB current_dpb = {
     .off = 2     /* 2 reserved tracks at the beginning of the disk for system boot tracking */
 };
 
+/* DD 512 byte sectors:
+   40 00 04 0F 00 2B 01 7F 00 CB 00 20 00 02
+
+   SD 128 byte sectors
+   1A 00 03 07 00 F2 00 3F 00 CB 00 10 00 02
+*/
+
 /* Standard 8" SSSD Skew Table (6-sector interleave) */
-static const uint8_t current_skew[26] = {
-#if 1 //def UNUSED
-    1,  7, 13, 19, 25,  5, 11, 17, 23,  3,  9, 15, 21,
-    2,  8, 14, 20, 26,  6, 12, 18, 24,  4, 10, 16, 22
-#else /* ! UNUSED */
-     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
-    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-#endif /* UNUSED */
+static const uint8_t sd_skew[26] = {
+  1,  7, 13, 19, 25,  5, 11, 17, 23,  3,  9, 15, 21,
+  2,  8, 14, 20, 26,  6, 12, 18, 24,  4, 10, 16, 22,
+};
+
+/* Standard 8" SSSD Skew Table (6-sector interleave) */
+static const uint8_t dd_skew[64] = {
+   0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+  48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
 };
 
 /* The shared 128-byte directory scratchpad */
@@ -38,7 +72,7 @@ static uint8_t driveA_alv[32];
 
 /* The final assigned DPH for Drive A */
 static struct CPM_DPH current_dph = {
-    .xlt      = current_skew,
+    .xlt      = sd_skew,
     .scratch1 = 0,
     .scratch2 = 0,
     .scratch3 = 0,
@@ -53,6 +87,10 @@ static uint16_t current_track = 0;
 static uint8_t current_sector = 0;
 static uint8_t *dma_buffer = (uint8_t *) 0x0080; /* Default CP/M DMA address */
 
+static _percomBlock geometry;
+static uint16_t last_block;
+static uint8_t block_buffer[MAX_BLOCK_SIZE];
+
 void bios_home(void)
 {
   current_track = 0;
@@ -60,12 +98,71 @@ void bios_home(void)
 
 void *bios_seldsk(uint8_t drive) __z88dk_fastcall
 {
+  bool success = 0;
+  uint16_t sector_size;
+
+
+#ifdef UNUSED
   printString("FUJI SELDSK ");
   printDec(drive, 0, 0);
   printString(" ");
   printDec(our_drive, 0, 0);
   printString("\r\n");
+#endif /* UNUSED */
   current_drive = drive - our_drive;
+
+  // FIXME - check if disk has changed
+  success = fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
+                          DISKCMD_PERCOM_READ,
+                          FUJI_FIELD_REPLY,
+                          0, 0, 0, 0,
+                          &geometry, sizeof(geometry));
+  if (!success)
+    return NULL;
+
+#ifdef UNUSED
+  printString("FUJI GEOMETRY SPT=");
+  printDec(be16toh(geometry.sectors_per_track), 0, 0);
+  printString(" NT=");
+  printDec(geometry.num_tracks, 0, 0);
+  printString(" SS=");
+  printDec(be16toh(geometry.sector_size), 0, 0);
+  printString(" NS=");
+  printDec(geometry.num_sides, 0, 0);
+  printString("\r\n");
+#endif /* UNUSED */
+
+  sector_size = be16toh(geometry.sector_size);
+  if (sector_size == SD_SECTOR_SIZE) {
+    current_dpb.spt = 26;
+    current_dpb.bsh = 3;
+    current_dpb.blm = 7;
+    current_dpb.exm = 0;
+    current_dpb.dsm = 242;
+    current_dpb.drm = 63;
+    current_dpb.al0 = 0xCB;
+    current_dpb.al1 = 0x00;
+    current_dpb.cks = 16;
+    current_dpb.off = 2;
+    current_dph.xlt = sd_skew;
+  }
+  else if (sector_size == DD_SECTOR_SIZE) {
+    current_dpb.spt = 64;
+    current_dpb.bsh = 4;
+    current_dpb.blm = 15;
+    current_dpb.exm = 0;
+    current_dpb.dsm = 299;
+    current_dpb.drm = 63;
+    current_dpb.al0 = 0xCB;
+    current_dpb.al1 = 0x00;
+    current_dpb.cks = 16;
+    current_dpb.off = 2;
+    current_dph.xlt = dd_skew;
+  }
+  else
+    return NULL;
+
+  last_block = 0xffff;
   return &current_dph;
 }
 
@@ -81,16 +178,55 @@ void bios_setsec(uint8_t sector) __z88dk_fastcall
 
 void bios_setdma(uint16_t dma_addr) __z88dk_fastcall
 {
+#ifdef UNUSED
+  printString("FUJI SETDMA 0x");
+  printHex(dma_addr, 4, '0');
+  printString("\r\n");
+#endif /* UNUSED */
   dma_buffer = (uint8_t *) dma_addr;
+}
+
+void calc_block(uint16_t track, uint16_t sector,
+                uint16_t *block_size, uint16_t *block_num, uint8_t *offset)
+{
+  // First track is always 26x128
+  if (current_dpb.spt == TRACK_0_NUMSEC || track == 0) {
+    *block_size = SD_SECTOR_SIZE;
+    *block_num = (sector - 1) + track * current_dpb.spt;
+    *offset = 0;
+  }
+  else {
+    *block_size = DD_SECTOR_SIZE;
+    sector += (track - 1) * current_dpb.spt;
+    *block_num = sector / 4 + TRACK_0_NUMSEC;
+    *offset = (sector % 4) * SD_SECTOR_SIZE;
+  }
+
+#ifdef UNUSED
+  printString("FUJI TRK=");
+  printDec(track, 0, 0);
+  printString(" SEC=");
+  printDec(sector, 0, 0);
+  printString(" BLK=");
+  printDec(*block_num, 0, 0);
+  printString(" SZ=");
+  printDec(*block_size, 0, 0);
+  printString(" OFF=");
+  printDec(*offset, 0, 0);
+  printString("\r\n");
+#endif /* UNUSED */
+  return;
 }
 
 uint8_t bios_read(void)
 {
-  unsigned sector = current_track * SECTORS_PER_TRACK + current_sector - 1;
-  bool success;
+  uint16_t block_size, block_num;
+  uint8_t offset;
+  bool success = 0;
 
 
-#ifdef OBSOLETE
+#ifdef UNUSED
+#ifdef __SCCZ80
   printString("FUJI READ TRK=");
   printDec(current_track, 0, 0);
   printString(" SEC=");
@@ -98,26 +234,59 @@ uint8_t bios_read(void)
   printString("\r\n");
 #else
   consolef("FUJI READ TRK=%d SEC=%d\n", current_track, current_sector);
-#endif /* OBSOLETE */
+#endif /* __SCCZ80 */
+#endif /* UNUSED */
 
-  success = fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
-                          DISKCMD_READ, FUJI_FIELD_C1234 | FUJI_FIELD_REPLY,
-                          NATIVE_SPLIT_U32(sector),
-                          dma_buffer, SECTOR_SIZE);
+  calc_block(current_track, current_sector, &block_size, &block_num, &offset);
+
+  if (last_block != block_num) {
+    success = fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
+                            DISKCMD_READ, FUJI_FIELD_C1234 | FUJI_FIELD_REPLY,
+                            NATIVE_SPLIT_U32(block_num),
+                            block_buffer, block_size);
+    last_block = block_num;
+  }
+
+  memcpy(dma_buffer, &block_buffer[offset], SD_SECTOR_SIZE);
+
+#ifdef UNUSED
   printString("SUCCESS=");
   printDec(success, 0, 0);
   printString("\r\n");
+
+  dumpHex(dma_buffer, SECTOR_SIZE, 0);
+#endif /* UNUSED */
 
   return !success;
 }
 
 uint8_t bios_write(uint8_t write_type) __z88dk_fastcall
 {
-  unsigned sector = current_track * SECTORS_PER_TRACK + current_sector;
+  uint16_t block_size, block_num;
+  uint8_t offset;
+  uint8_t *ptr;
 
+
+  printString("FUJI WRITE\r\n");
+
+  calc_block(current_track, current_sector, &block_size, &block_num, &offset);
+
+  if (block_size != SD_SECTOR_SIZE && last_block != block_num) {
+    if (!fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
+                       DISKCMD_READ, FUJI_FIELD_C1234 | FUJI_FIELD_REPLY,
+                       NATIVE_SPLIT_U32(block_num),
+                       block_buffer, block_size))
+      return 1;
+
+    last_block = block_num;
+    memcpy(&block_buffer[offset], dma_buffer, SD_SECTOR_SIZE);
+    ptr = block_buffer;
+  }
+  else
+    ptr = dma_buffer;
 
   return !fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
                         DISKCMD_WRITE, FUJI_FIELD_C1234 | FUJI_FIELD_DATA,
-                        NATIVE_SPLIT_U32(sector),
-                        dma_buffer, SECTOR_SIZE);
+                        NATIVE_SPLIT_U32(block_num),
+                        ptr, block_size);
 }
