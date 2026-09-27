@@ -16,5 +16,6 @@ extern void bios_setsec(uint8_t sector) __z88dk_fastcall;
 extern void bios_setdma(uint16_t dma_addr) __z88dk_fastcall;
 extern uint8_t bios_read(void);
 extern uint8_t bios_write(uint8_t write_type) __z88dk_fastcall;
+extern void bios_init(void);
 
 #endif /* DISK_H */

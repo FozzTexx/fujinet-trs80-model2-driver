@@ -2,6 +2,7 @@
 #include "cpm_dph.h"
 #include "fuji_bus_call.h"
 #include "print.h"
+#include "special.h"
 #include <intrinsic.h>
 #include <stdint.h>
 #include <string.h>
@@ -293,4 +294,67 @@ uint8_t bios_write(uint8_t write_type) __z88dk_fastcall
                         DISKCMD_WRITE, FUJI_FIELD_C1234 | FUJI_FIELD_DATA,
                         NATIVE_SPLIT_U32(block_num),
                         ptr, block_size);
+}
+
+// FIXME - this stuff belongs in installer, not disk driver
+
+uint8_t get_set_time(uint8_t set_flag)
+{
+  FujiApetime cur_time;
+  uint16_t year_wcen;
+
+
+  if (!fuji_bus_call(FUJI_DEVICEID_CLOCK, APETIMECMD_GETTZTIME, FUJI_FIELD_REPLY,
+                     0, 0, 0, 0,
+                     &cur_time, sizeof(cur_time))) {
+    printString("Could not read time from FujiNet\r\n");
+    return;
+  }
+
+  year_wcen = cur_time.tm_year + 2000;
+  printString("Current FujiNet date & time: ");
+  printDec(cur_time.tm_mon, 2, '0');
+  printString("/");
+  printDec(cur_time.tm_mday, 2, '0');
+  printString("/");
+  printDec(year_wcen, 4, '0');
+  printString(" ");
+  printDec(cur_time.tm_hour, 2, '0');
+  printString(":");
+  printDec(cur_time.tm_min, 2, '0');
+  printString(":");
+  printDec(cur_time.tm_sec, 2, '0');
+  printString("\r\n");
+
+  if (set_flag) {
+    pickles_trout_set_date(0, cur_time.tm_mday,
+                           cur_time.tm_mon, cur_time.tm_year);
+    pickles_trout_set_time(cur_time.tm_sec, cur_time.tm_min, cur_time.tm_hour);
+    printString("CP/M time now set from FujiNet\r\n");
+  }
+
+  return 0;
+}
+
+void bios_init(void)
+{
+  AdapterConfig *config = (AdapterConfig *) block_buffer;
+  unsigned int idx;
+
+
+  if (!fuji_bus_call(FUJI_DEVICEID_FUJINET, FUJICMD_GET_ADAPTERCONFIG, FUJI_FIELD_REPLY,
+                     0, 0, 0, 0,
+                     config, sizeof(AdapterConfig))) {
+    printString("Unable to get FujiNet version.\r\n");
+    return;
+  }
+
+  printString("FujiNet firmware version ");
+  for (idx = 0; idx < sizeof(config->fn_version) && config->fn_version[idx]; idx++)
+    printChar(config->fn_version[idx]);
+  printString("\r\n");
+
+  get_set_time(true);
+
+  return 0;
 }

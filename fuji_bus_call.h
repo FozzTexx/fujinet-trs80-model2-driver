@@ -3,6 +3,9 @@
 
 #define FUJI_DEVICEID_FUJINET 0x70
 #define FUJI_DEVICEID_DISK    0x31
+#define FUJI_DEVICEID_CLOCK   0x45
+
+#define SSID_MAXLEN    33 /* 32 + NULL */
 
 #define U32_MSW(v) ((uint16_t)(((uint32_t)(v) >> 16) & 0xFFFF))  // Most Significant Word
 #define U32_LSW(v) ((uint16_t)((uint32_t)(v) & 0xFFFF))          // Least Significant Word
@@ -28,16 +31,41 @@ enum {
 };
 
 enum {
-  DISKCMD_WRITE         = 0x57, // W
-  DISKCMD_STATUS        = 0x53, // S
-  DISKCMD_READ          = 0x52, // R
-  DISKCMD_PUT           = 0x50, // P
-  DISKCMD_PERCOM_WRITE  = 0x4F, // O
-  DISKCMD_PERCOM_READ   = 0x4E, // N
-  DISKCMD_HSIO_INDEX    = 0x3F, // ?
-  DISKCMD_FORMAT_MEDIUM = 0x22, // "
-  DISKCMD_FORMAT        = 0x21, // !
+  FUJICMD_GET_ADAPTERCONFIG = 0xE8,
+
+  DISKCMD_WRITE             = 0x57, // W
+  DISKCMD_STATUS            = 0x53, // S
+  DISKCMD_READ              = 0x52, // R
+  DISKCMD_PUT               = 0x50, // P
+  DISKCMD_PERCOM_WRITE      = 0x4F, // O
+  DISKCMD_PERCOM_READ       = 0x4E, // N
+  DISKCMD_HSIO_INDEX        = 0x3F, // ?
+  DISKCMD_FORMAT_MEDIUM     = 0x22, // "
+  DISKCMD_FORMAT            = 0x21, // !
+
+  APETIMECMD_GETTZTIME      = 0x9A,
 };
+
+typedef struct {
+  char ssid[SSID_MAXLEN];
+  char hostname[64];
+  uint8_t localIP[4];
+  uint8_t gateway[4];
+  uint8_t netmask[4];
+  uint8_t dnsIP[4];
+  uint8_t macAddress[6];
+  uint8_t bssid[6];
+  char fn_version[15];
+} AdapterConfig;
+
+typedef struct {
+  char tm_mday;
+  char tm_mon;
+  char tm_year;
+  char tm_hour;
+  char tm_min;
+  char tm_sec;
+} FujiApetime;
 
 extern bool fuji_bus_call(uint8_t device, uint8_t fuji_cmd, uint8_t fields,
                           uint8_t aux1, uint8_t aux2, uint8_t aux3, uint8_t aux4,

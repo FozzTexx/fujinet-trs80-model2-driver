@@ -15,7 +15,7 @@ extern void dumpHex(void *ptr, uint16_t count, uint16_t address);
 extern void printString(const char *str);
 
 #ifdef __SCCZ80
-#warning "stdarg/vararg does not work on this compiler"
+//#warning "stdarg/vararg does not work on this compiler"
 #else
 #include <stdarg.h>
 extern void vconsolef(const char *format, va_list args);

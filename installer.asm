@@ -34,8 +34,9 @@ OFF_OUR_SETSEC:	EQU 3*3
 OFF_OUR_SETDMA:	EQU 4*3
 OFF_OUR_READ:	EQU 5*3
 OFF_OUR_WRITE:	EQU 6*3
+OFF_OUR_INIT:	EQU 7*3
 
-OFF_OUR_DRIVE:	EQU 7*3
+OFF_OUR_DRIVE:	EQU 8*3
 
 OFF_ORIG_BASE:	EQU OFF_OUR_DRIVE+2
 OFF_ORIG_HOME:	EQU OFF_ORIG_BASE+0*2
@@ -141,6 +142,11 @@ have_drive:
         ld hl,JT_WRITE
         ld de,OFF_OUR_WRITE
         call patch_one_vector
+
+	ld hl,RESIDENT_BASE
+	ld de,OFF_OUR_INIT
+	add hl,de
+	call (hl)
 
         ld hl,msg_done
         call print_string
