@@ -1,19 +1,10 @@
 #include <stdint.h>
 
-/* Enforce byte packing for zsdcc / sccz80 */
-#if defined(__SDCC) || defined(__ZSDCC)
-    #define PACKED __attribute__((packed))
-#else
-    #define PACKED
-#endif
-
-#pragma pack(push, 1)
-
 /**
  * Disk Parameter Block (DPB)
  * Fits perfectly into 15 bytes.
  */
-struct PACKED CPM_DPB {
+struct CPM_DPB {
   uint16_t spt;              /* Number of 128-byte logical sectors per track */
   uint8_t  bsh;              /* Block shift factor (e.g., 3 = 1KB blocks, 4 = 2KB blocks) */
   uint8_t  blm;              /* Block mask (2^BSH - 1) */
@@ -30,7 +21,7 @@ struct PACKED CPM_DPB {
  * Directory Entry Header (FCB-compatible format)
  * Fits perfectly into 32 bytes.
  */
-struct PACKED CPM_DirEntry {
+struct CPM_DirEntry {
   uint8_t  dr;               /* Drive code / user area (0-15 = user area, 0xE5 = deleted) */
   uint8_t  f[8];             /* File name (Padded with spaces) */
   uint8_t  t[3];             /* File extension (Padded with spaces) */
@@ -45,7 +36,7 @@ struct PACKED CPM_DirEntry {
  * Disk Parameter Header (DPH)
  * Fits perfectly into 16 bytes because pointers are 16-bit on Z80.
  */
-struct PACKED CPM_DPH {
+struct CPM_DPH {
   const uint8_t *xlt;        /* Sector translation (skew) table pointer. NULL if none. */
   uint16_t scratch1;         /* BDOS scratchpad word 1 */
   uint16_t scratch2;         /* BDOS scratchpad word 2 */
@@ -60,5 +51,3 @@ struct PACKED CPM_DPH {
   uint8_t *csv;              /* Directory checksum vector buffer pointer */
   uint8_t *alv;              /* Allocation vector buffer pointer */
 };
-
-#pragma pack(pop)
