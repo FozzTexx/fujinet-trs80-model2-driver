@@ -82,7 +82,7 @@ static struct CPM_DPH current_dph = {
     .alv      = driveA_alv
 };
 
-static uint8_t current_drive = 0;
+static uint8_t current_drive = 0xFF;
 static uint16_t current_track = 0;
 static uint8_t current_sector = 0;
 static uint8_t *dma_buffer = (uint8_t *) 0x0080; /* Default CP/M DMA address */
@@ -109,7 +109,11 @@ void *bios_seldsk(uint8_t drive) __z88dk_fastcall
   printDec(our_drive, 0, 0);
   printString("\r\n");
 #endif /* UNUSED */
-  current_drive = drive - our_drive;
+  drive -= our_drive;
+  if (current_drive != drive) {
+    current_drive = drive;
+    last_block = 0xffff;
+  }
 
   // FIXME - check if disk has changed
   success = fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
@@ -162,7 +166,6 @@ void *bios_seldsk(uint8_t drive) __z88dk_fastcall
   else
     return NULL;
 
-  last_block = 0xffff;
   return &current_dph;
 }
 
@@ -187,7 +190,7 @@ void bios_setdma(uint16_t dma_addr) __z88dk_fastcall
 }
 
 void calc_block(uint16_t track, uint16_t sector,
-                uint16_t *block_size, uint16_t *block_num, uint8_t *offset)
+                uint16_t *block_size, uint16_t *block_num, uint16_t *offset)
 {
 #ifdef UNUSED
   printString("FUJI TRK=");
@@ -210,6 +213,8 @@ void calc_block(uint16_t track, uint16_t sector,
   }
 
 #ifdef UNUSED
+  printString(" MSC=");
+  printDec(sector % 4, 0, 0);
   printString(" BLK=");
   printDec(*block_num, 0, 0);
   printString(" SZ=");
@@ -224,8 +229,7 @@ void calc_block(uint16_t track, uint16_t sector,
 
 uint8_t bios_read(void)
 {
-  uint16_t block_size, block_num;
-  uint8_t offset;
+  uint16_t block_size, block_num, offset;
 
 
 #ifdef UNUSED
@@ -243,6 +247,13 @@ uint8_t bios_read(void)
   calc_block(current_track, current_sector, &block_size, &block_num, &offset);
 
   if (last_block != block_num) {
+#ifdef UNUSED
+    printString("FUJI READ LAST=");
+    printDec(last_block, 0, 0);
+    printString(" REQ=");
+    printDec(block_num, 0, 0);
+    printString("\r\n");
+#endif /* UNUSED */
     if (!fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
                        DISKCMD_READ, FUJI_FIELD_C1234 | FUJI_FIELD_REPLY,
                        NATIVE_SPLIT_U32(block_num),
@@ -261,8 +272,7 @@ uint8_t bios_read(void)
 
 uint8_t bios_write(uint8_t write_type) __z88dk_fastcall
 {
-  uint16_t block_size, block_num;
-  uint8_t offset;
+  uint16_t block_size, block_num, offset;
   uint8_t *ptr;
 
 
