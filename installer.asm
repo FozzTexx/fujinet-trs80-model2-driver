@@ -263,7 +263,7 @@ free_drive:     db 0
 tmp_offset:     dw 0
 tmp_addr:       dw 0
 
-msg_installing: db "Installing custom disk driver...",13,10,'$'
+msg_installing: db "Installing FujiNet disk driver...",13,10,'$'
 msg_claimed:    db "Claiming drive ",'$'
 msg_colon_nl:   db ":",13,10,'$'
 msg_no_free_drive: db "No free drive letter (A-P all in use) - aborting.",13,10,'$'

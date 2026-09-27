@@ -1,7 +1,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define FUJI_DEVICEID_DISK              0x31
+#define FUJI_DEVICEID_FUJINET 0x70
+#define FUJI_DEVICEID_DISK    0x31
 
 #define U32_MSW(v) ((uint16_t)(((uint32_t)(v) >> 16) & 0xFFFF))  // Most Significant Word
 #define U32_LSW(v) ((uint16_t)((uint32_t)(v) & 0xFFFF))          // Least Significant Word

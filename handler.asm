@@ -145,7 +145,10 @@ our_seldsk:
         ld a,1
         ld (mine_flag),a
         ld l,c                  ; fastcall wants the drive number in L
+	ld (saved_sp),sp	; Preserve caller's stack
+	ld sp,our_stack_top	; Use our stack
         call _bios_seldsk       ; returns HL = DPH ptr directly
+	ld sp,(saved_sp)	; Restore caller's stack
         ret
 seldsk_not_ours:
         xor a
@@ -165,7 +168,10 @@ our_home:
         jp (hl)                 ; tail-chain - let the original's own
                                 ; RET return directly to our caller
 home_ours:
+	ld (saved_sp),sp	; Preserve caller's stack
+	ld sp,our_stack_top	; Use our stack
         call _bios_home
+	ld sp,(saved_sp)	; Restore caller's stack
         ret
 
 ; ----------------------------------------------------------------
@@ -179,7 +185,10 @@ our_settrk:
         jp (hl)
 settrk_ours:
         ld hl,bc                ; fastcall wants the 16-bit value in HL
+	ld (saved_sp),sp	; Preserve caller's stack
+	ld sp,our_stack_top	; Use our stack
         call _bios_settrk
+	ld sp,(saved_sp)	; Restore caller's stack
         ret
 
 ; ----------------------------------------------------------------
@@ -194,7 +203,10 @@ our_setsec:
 setsec_ours:
         ld h,b
         ld l,c
+	ld (saved_sp),sp	; Preserve caller's stack
+	ld sp,our_stack_top	; Use our stack
         call _bios_setsec
+	ld sp,(saved_sp)	; Restore caller's stack
         ret
 
 ; ----------------------------------------------------------------
@@ -206,7 +218,10 @@ setsec_ours:
 our_setdma:
         ld h,b
         ld l,c
+	ld (saved_sp),sp	; Preserve caller's stack
+	ld sp,our_stack_top	; Use our stack
         call _bios_setdma       ; unconditionally tell our own C code
+	ld sp,(saved_sp)	; Restore caller's stack
         ld hl,(orig_setdma)
         jp (hl)                 ; ...and unconditionally chain too
                                 ; (tail-chain: its own RET returns to
@@ -222,8 +237,11 @@ our_read:
         ld hl,(orig_read)
         jp (hl)
 read_ours:
-        call _bios_read         ; returns A = status directly
-	ld a,l
+	ld (saved_sp),sp	; Preserve caller's stack
+	ld sp,our_stack_top	; Use our stack
+        call _bios_read         ; returns status in L
+	ld sp,(saved_sp)	; Restore caller's stack
+	ld a,l			; CP/M wants status in A
         ret
 
 ; ----------------------------------------------------------------
@@ -237,9 +255,18 @@ our_write:
         jp (hl)
 write_ours:
         ld l,c                  ; fastcall wants the flag in L
-        call _bios_write        ; returns A = status directly
-	ld a,l
+	ld (saved_sp),sp	; Preserve caller's stack
+	ld sp,our_stack_top	; Use our stack
+        call _bios_write        ; returns status in L
+	ld sp,(saved_sp)	; Restore caller's stack
+	ld a,l			; CP/M wants status in A
         ret
+
+saved_sp:
+	dw 0
+our_stack:
+	defs 256
+our_stack_top:
 
 ; ======================================================================
 ; Standard CP/M 2.2 DPH (Disk Parameter Header) and DPB (Disk
