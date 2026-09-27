@@ -1,3 +1,6 @@
+#ifndef DISK_H
+#define DISK_H
+
 #include <stdint.h>
 
 #define SECTOR_SIZE       128
@@ -13,3 +16,5 @@ extern void bios_setsec(uint8_t sector) __z88dk_fastcall;
 extern void bios_setdma(uint16_t dma_addr) __z88dk_fastcall;
 extern uint8_t bios_read(void);
 extern uint8_t bios_write(uint8_t write_type) __z88dk_fastcall;
+
+#endif /* DISK_H */

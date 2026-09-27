@@ -135,7 +135,7 @@ call_hl:
         jp (hl)
 
 ; ----------------------------------------------------------------
-; our_seldsk - IN: C = drive number. OUT: HL = DPH ptr, or 0.
+; our_seldsk - IN: C = drive number, E&1 = new. OUT: HL = DPH ptr, or 0.
 ; ----------------------------------------------------------------
 our_seldsk:
         ld a,c
@@ -144,9 +144,7 @@ our_seldsk:
         jr nz,seldsk_not_ours
         ld a,1
         ld (mine_flag),a
-        ld a,c                  ; fastcall wants the drive number in A
-                                ; (redundant with the compare above,
-                                ; but keeps the two paths symmetric)
+        ld l,c                  ; fastcall wants the drive number in L
         call _bios_seldsk       ; returns HL = DPH ptr directly
         ret
 seldsk_not_ours:
@@ -180,8 +178,7 @@ our_settrk:
         ld hl,(orig_settrk)
         jp (hl)
 settrk_ours:
-        ld h,b
-        ld l,c                  ; fastcall wants the 16-bit value in HL
+        ld hl,bc                ; fastcall wants the 16-bit value in HL
         call _bios_settrk
         ret
 
@@ -226,6 +223,7 @@ our_read:
         jp (hl)
 read_ours:
         call _bios_read         ; returns A = status directly
+	ld a,l
         ret
 
 ; ----------------------------------------------------------------
@@ -238,8 +236,9 @@ our_write:
         ld hl,(orig_write)
         jp (hl)
 write_ours:
-        ld a,c                  ; fastcall wants the flag in A
+        ld l,c                  ; fastcall wants the flag in L
         call _bios_write        ; returns A = status directly
+	ld a,l
         ret
 
 ; ======================================================================

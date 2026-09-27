@@ -1,28 +1,30 @@
 AS = z80asm
 CC = zcc
-ASFLAGS =
-CFLAGS = +cpm --no-crt
+ASFLAGS = -l
+CFLAGS = +cpm -m
 PORTIO_OBJ = port_getbuf_slip_dual.o port_getc_timeout.o port_init.o port_putbuf_slip.o \
 	     port_putc.o
 FUJIBUS_OBJ = fuji_bus_call.o
 DISK_OBJ = disk.o
-PRINT_OBJ = print_string.o
+PRINT_OBJ = bios_print.o print.o
 HANDLER = handler
 INSTALLER_OBJ = installer.o
 
 fujitsr2.com: $(INSTALLER_OBJ) $(HANDLER).com tsr.inc
-	$(CC) $(CFLAGS) -o=$@ $<
+	$(CC) $(CFLAGS) --no-crt -o=$@ $<
 
-$(HANDLER).com: $(HANDLER).asm $(PORTIO_OBJ) $(FUJIBUS_OBJ) $(DISK_OBJ) $(PRINT_OBJ)
+$(HANDLER).com: $(HANDLER).o $(PORTIO_OBJ) $(FUJIBUS_OBJ) $(DISK_OBJ) $(PRINT_OBJ)
+	$(CC) $(CFLAGS) --no-crt -o $@ $^
 
 $(DISK_OBJ): disk.h fuji_bus_call.h
 $(FUJIBUS_OBJ): fuji_bus_call.h portio.h
 $(PORTIO_OBJ): portio.inc
-$(HANDLER).asm: tsr.inc
+$(HANDLER).o: $(HANDLER).asm tsr.inc
 $(INSTALLER_OBJ): installer.asm tsr.inc $(HANDLER).com
+print.o: print.h print.c
 
-%.com: %.asm
-	$(CC) $(CFLAGS) -o $@ $^
+# %.com: %.asm
+# 	$(CC) $(CFLAGS) -o $@ $^
 
 %.o: %.asm
 	$(AS) $(ASFLAGS) -o=$@ $<
@@ -32,3 +34,6 @@ $(INSTALLER_OBJ): installer.asm tsr.inc $(HANDLER).com
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 contest.com: contest.asm
+
+secheck.com: secheck.o
+	$(CC) $(CFLAGS) -o $@ $^

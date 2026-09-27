@@ -1,9 +1,9 @@
 #include "disk.h"
 #include "cpm_dph.h"
 #include "fuji_bus_call.h"
+#include "print.h"
 
 extern uint8_t our_drive;
-extern void print_string(uint8_t *str) __z88dk_fastcall;
 
 static struct CPM_DPB current_dpb = {
     .spt = 26,   /* 26 logical sectors per track */
@@ -20,8 +20,13 @@ static struct CPM_DPB current_dpb = {
 
 /* Standard 8" SSSD Skew Table (6-sector interleave) */
 static const uint8_t current_skew[26] = {
+#if 1 //def UNUSED
     1,  7, 13, 19, 25,  5, 11, 17, 23,  3,  9, 15, 21,
     2,  8, 14, 20, 26,  6, 12, 18, 24,  4, 10, 16, 22
+#else /* ! UNUSED */
+     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12,
+    13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
+#endif /* UNUSED */
 };
 
 /* The shared 128-byte directory scratchpad */
@@ -53,40 +58,60 @@ void bios_home(void)
   current_track = 0;
 }
 
-void *bios_seldsk(uint8_t drive)
+void *bios_seldsk(uint8_t drive) __z88dk_fastcall
 {
-  print_string("FUJI SELDSK\r\n$");
+  printString("FUJI SELDSK ");
+  printDec(drive, 0, 0);
+  printString(" ");
+  printDec(our_drive, 0, 0);
+  printString("\r\n");
   current_drive = drive - our_drive;
   return &current_dph;
 }
 
-void bios_settrk(uint16_t track)
+void bios_settrk(uint16_t track) __z88dk_fastcall
 {
   current_track = track;
 }
 
-void bios_setsec(uint8_t sector)
+void bios_setsec(uint8_t sector) __z88dk_fastcall
 {
   current_sector = sector;
 }
 
-void bios_setdma(uint16_t dma_addr)
+void bios_setdma(uint16_t dma_addr) __z88dk_fastcall
 {
   dma_buffer = (uint8_t *) dma_addr;
 }
 
 uint8_t bios_read(void)
 {
-  unsigned sector = current_track * SECTORS_PER_TRACK + current_sector;
+  unsigned sector = current_track * SECTORS_PER_TRACK + current_sector - 1;
+  bool success;
 
 
-  return !fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
-                        DISKCMD_READ, FUJI_FIELD_C1234 | FUJI_FIELD_REPLY,
-                        NATIVE_SPLIT_U32(sector),
-                        dma_buffer, SECTOR_SIZE);
+#ifdef OBSOLETE
+  printString("FUJI READ TRK=");
+  printDec(current_track, 0, 0);
+  printString(" SEC=");
+  printDec(current_sector, 0, 0);
+  printString("\r\n");
+#else
+  consolef("FUJI READ TRK=%d SEC=%d\n", current_track, current_sector);
+#endif /* OBSOLETE */
+
+  success = fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
+                          DISKCMD_READ, FUJI_FIELD_C1234 | FUJI_FIELD_REPLY,
+                          NATIVE_SPLIT_U32(sector),
+                          dma_buffer, SECTOR_SIZE);
+  printString("SUCCESS=");
+  printDec(success, 0, 0);
+  printString("\r\n");
+
+  return !success;
 }
 
-uint8_t bios_write(uint8_t write_type)
+uint8_t bios_write(uint8_t write_type) __z88dk_fastcall
 {
   unsigned sector = current_track * SECTORS_PER_TRACK + current_sector;
 
