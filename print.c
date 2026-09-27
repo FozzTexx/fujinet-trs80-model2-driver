@@ -1,10 +1,6 @@
 #include "print.h"
 #include <ctype.h>
 
-#ifdef __SCCZ80
-#error "stdarg/vararg does not work on this compiler"
-#endif
-
 void printHex(uint16_t val, uint16_t width, char leading)
 {
   uint16_t digits, tval;
@@ -148,6 +144,7 @@ void dumpHex(void *ptr, uint16_t count, uint16_t address)
   return;
 }
 
+#ifndef __SCCZ80
 void vconsolef(const char *format, va_list args)
 {
   const char *pf;
@@ -223,3 +220,4 @@ void consolef(const char *format, ...)
   vconsolef(format, args);
   va_end(args);
 }
+#endif /* ! __SCCZ80 */
