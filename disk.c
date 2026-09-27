@@ -29,17 +29,30 @@ typedef struct {
   uint8_t reserved3;
 } _percomBlock;
 
-static struct CPM_DPB current_dpb = {
-    .spt = 26,   /* 26 logical sectors per track */
-    .bsh = 3,    /* Block shift factor: 3 (translates to 1KB allocation blocks) */
-    .blm = 7,    /* Block mask: 2^3 - 1 = 7 */
-    .exm = 0,    /* Extent mask: 0 (since max block size <= 255 and disk < 256 blocks) */
-    .dsm = 242,  /* Total logical allocation blocks minus 1 (243 total blocks) */
-    .drm = 63,   /* Total directory entries minus 1 (Allows for 64 files max) */
-    .al0 = 0xC0, /* Binary 11000000: Claims the first 2 blocks (Blocks 0 & 1) for directory storage */
-    .al1 = 0x00, /* Binary 00000000 */
-    .cks = 16,   /* Checksum vector size: (DRM + 1) / 4 -> 64 / 4 = 16 bytes */
-    .off = 2     /* 2 reserved tracks at the beginning of the disk for system boot tracking */
+static struct CPM_DPB sd_dpb = {
+  .spt = 26,   /* 26 logical sectors per track */
+  .bsh = 3,    /* Block shift factor: 3 (translates to 1KB allocation blocks) */
+  .blm = 7,    /* Block mask: 2^3 - 1 = 7 */
+  .exm = 0,    /* Extent mask: 0 (since max block size <= 255 and disk < 256 blocks) */
+  .dsm = 242,  /* Total logical allocation blocks minus 1 (243 total blocks) */
+  .drm = 63,   /* Total directory entries minus 1 (Allows for 64 files max) */
+  .al0 = 0xC0, /* Binary 11001011: Blocks, 0, 1, 3, 6, 7 for directory storage */
+  .al1 = 0x00, /* Binary 00000000 */
+  .cks = 16,   /* Checksum vector size: (DRM + 1) / 4 -> 64 / 4 = 16 bytes */
+  .off = 2     /* 2 reserved tracks at the beginning of the disk for system boot tracking */
+};
+
+static struct CPM_DPB dd_dpb = {
+  .spt = 64,
+  .bsh = 4,
+  .blm = 15,
+  .exm = 0,
+  .dsm = 299,
+  .drm = 127,
+  .al0 = 0xC0,
+  .al1 = 0x00,
+  .cks = 32,
+  .off = 2
 };
 
 /* DD 512 byte sectors:
@@ -77,7 +90,7 @@ static struct CPM_DPH current_dph = {
     .scratch2 = 0,
     .scratch3 = 0,
     .dirbuf   = { .raw_bytes = shared_dirbuf },
-    .dpb      = &current_dpb,
+    .dpb      = &sd_dpb,
     .csv      = driveA_csv,
     .alv      = driveA_alv
 };
@@ -138,29 +151,11 @@ void *bios_seldsk(uint8_t drive) __z88dk_fastcall
 
   sector_size = be16toh(geometry.sector_size);
   if (sector_size == SD_SECTOR_SIZE) {
-    current_dpb.spt = 26;
-    current_dpb.bsh = 3;
-    current_dpb.blm = 7;
-    current_dpb.exm = 0;
-    current_dpb.dsm = 242;
-    current_dpb.drm = 63;
-    current_dpb.al0 = 0xCB;
-    current_dpb.al1 = 0x00;
-    current_dpb.cks = 16;
-    current_dpb.off = 2;
+    current_dph.dpb = &sd_dpb;
     current_dph.xlt = sd_skew;
   }
   else if (sector_size == DD_SECTOR_SIZE) {
-    current_dpb.spt = 64;
-    current_dpb.bsh = 4;
-    current_dpb.blm = 15;
-    current_dpb.exm = 0;
-    current_dpb.dsm = 299;
-    current_dpb.drm = 63;
-    current_dpb.al0 = 0xCB;
-    current_dpb.al1 = 0x00;
-    current_dpb.cks = 16;
-    current_dpb.off = 2;
+    current_dph.dpb = &dd_dpb;
     current_dph.xlt = dd_skew;
   }
   else
@@ -200,14 +195,14 @@ void calc_block(uint16_t track, uint16_t sector,
 #endif /* UNUSED */
 
   // First track is always 26x128
-  if (current_dpb.spt == TRACK_0_NUMSEC || track == 0) {
+  if (current_dph.dpb->spt == TRACK_0_NUMSEC || track == 0) {
     *block_size = SD_SECTOR_SIZE;
-    *block_num = (sector - 1) + track * current_dpb.spt;
+    *block_num = (sector - 1) + track * current_dph.dpb->spt;
     *offset = 0;
   }
   else {
     *block_size = DD_SECTOR_SIZE;
-    sector += (track - 1) * current_dpb.spt;
+    sector += (track - 1) * current_dph.dpb->spt;
     *block_num = sector / 4 + TRACK_0_NUMSEC;
     *offset = (sector % 4) * SD_SECTOR_SIZE;
   }
