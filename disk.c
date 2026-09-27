@@ -298,6 +298,16 @@ uint8_t bios_write(uint8_t write_type) __z88dk_fastcall
 
 // FIXME - this stuff belongs in installer, not disk driver
 
+/* Sakamoto's method: 0 = Sunday. month is 1-12. */
+uint8_t day_of_week(int year, uint8_t month, uint8_t day)
+{
+  static const uint8_t t[12] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+
+  if (month < 3)
+    year--;
+  return (uint8_t)((year + year / 4 - year / 100 + year / 400 + t[month - 1] + day) % 7);
+}
+
 uint8_t get_set_time(uint8_t set_flag)
 {
   FujiApetime cur_time;
@@ -327,8 +337,8 @@ uint8_t get_set_time(uint8_t set_flag)
   printString("\r\n");
 
   if (set_flag) {
-    pickles_trout_set_date(0, cur_time.tm_mday,
-                           cur_time.tm_mon, cur_time.tm_year);
+    pickles_trout_set_date(day_of_week(year_wcen, cur_time.tm_mon, cur_time.tm_mday),
+                           cur_time.tm_mday, cur_time.tm_mon, cur_time.tm_year);
     pickles_trout_set_time(cur_time.tm_sec, cur_time.tm_min, cur_time.tm_hour);
     printString("CP/M time now set from FujiNet\r\n");
   }

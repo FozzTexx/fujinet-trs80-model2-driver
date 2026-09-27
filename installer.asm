@@ -229,7 +229,7 @@ find_free_drive:
 ;;         jr fd_loop
 ;; fd_found:
 ;;         ld a,b
-	ld a,2
+	ld a,3
         ld (free_drive),a
         ret
 fd_none:
