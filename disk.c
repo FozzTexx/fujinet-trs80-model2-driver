@@ -52,7 +52,7 @@ static struct CPM_DPB current_dpb = {
 /* Standard 8" SSSD Skew Table (6-sector interleave) */
 static const uint8_t sd_skew[26] = {
   1,  7, 13, 19, 25,  5, 11, 17, 23,  3,  9, 15, 21,
-  2,  8, 14, 20, 26,  6, 12, 18, 24,  4, 10, 16, 22,
+  2,  8, 14, 20, 26,  6, 12, 18, 24,  4, 10, 16, 22
 };
 
 /* Standard 8" SSSD Skew Table (6-sector interleave) */
@@ -60,7 +60,7 @@ static const uint8_t dd_skew[64] = {
    0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
   16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
   32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-  48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
+  48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63
 };
 
 /* The shared 128-byte directory scratchpad */
@@ -189,6 +189,13 @@ void bios_setdma(uint16_t dma_addr) __z88dk_fastcall
 void calc_block(uint16_t track, uint16_t sector,
                 uint16_t *block_size, uint16_t *block_num, uint8_t *offset)
 {
+#ifdef UNUSED
+  printString("FUJI TRK=");
+  printDec(track, 0, 0);
+  printString(" SEC=");
+  printDec(sector, 0, 0);
+#endif /* UNUSED */
+
   // First track is always 26x128
   if (current_dpb.spt == TRACK_0_NUMSEC || track == 0) {
     *block_size = SD_SECTOR_SIZE;
@@ -203,10 +210,6 @@ void calc_block(uint16_t track, uint16_t sector,
   }
 
 #ifdef UNUSED
-  printString("FUJI TRK=");
-  printDec(track, 0, 0);
-  printString(" SEC=");
-  printDec(sector, 0, 0);
   printString(" BLK=");
   printDec(*block_num, 0, 0);
   printString(" SZ=");
@@ -215,6 +218,7 @@ void calc_block(uint16_t track, uint16_t sector,
   printDec(*offset, 0, 0);
   printString("\r\n");
 #endif /* UNUSED */
+
   return;
 }
 
@@ -222,7 +226,6 @@ uint8_t bios_read(void)
 {
   uint16_t block_size, block_num;
   uint8_t offset;
-  bool success = 0;
 
 
 #ifdef UNUSED
@@ -240,24 +243,20 @@ uint8_t bios_read(void)
   calc_block(current_track, current_sector, &block_size, &block_num, &offset);
 
   if (last_block != block_num) {
-    success = fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
-                            DISKCMD_READ, FUJI_FIELD_C1234 | FUJI_FIELD_REPLY,
-                            NATIVE_SPLIT_U32(block_num),
-                            block_buffer, block_size);
+    if (!fuji_bus_call(FUJI_DEVICEID_DISK + current_drive,
+                       DISKCMD_READ, FUJI_FIELD_C1234 | FUJI_FIELD_REPLY,
+                       NATIVE_SPLIT_U32(block_num),
+                       block_buffer, block_size))
+      return 1;
     last_block = block_num;
   }
 
   memcpy(dma_buffer, &block_buffer[offset], SD_SECTOR_SIZE);
-
 #ifdef UNUSED
-  printString("SUCCESS=");
-  printDec(success, 0, 0);
-  printString("\r\n");
-
-  dumpHex(dma_buffer, SECTOR_SIZE, 0);
+  dumpHex(dma_buffer, SD_SECTOR_SIZE, offset);
 #endif /* UNUSED */
 
-  return !success;
+  return 0;
 }
 
 uint8_t bios_write(uint8_t write_type) __z88dk_fastcall
