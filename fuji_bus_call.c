@@ -1,5 +1,3 @@
-#include <stdio.h> // debug
-
 #include "fuji_bus_call.h"
 #include "portio.h"
 #include <string.h>
@@ -7,13 +5,14 @@
 #include <stdbool.h>
 
 #undef DEBUG
-#define HEXDUMP 1
+
+#ifdef DEBUG
+//#include "print.h" // debug
+#endif
 
 #ifndef fuji_field_numbytes
 #define fuji_field_numbytes(descr) fuji_field_numbytes_table[descr & 0x7]
 #endif
-
-static void hexdump(void *ptr, int count);
 
 #define TIMEOUT_SLOW	(15 * PORT_TICKS_PER_SECOND)
 
@@ -179,22 +178,38 @@ bool fuji_bus_call(uint8_t device, uint8_t fuji_cmd, uint8_t fields,
 		   uint8_t aux1, uint8_t aux2, uint8_t aux3, uint8_t aux4,
 		   const void *buf, size_t buf_length)
 {
-  int code;
-  uint8_t ck1, ck2;
-  uint16_t rlen;
-  uint16_t idx, numbytes;
   fujibus_packet fb_packet;
+  uint8_t idx, numbytes;
   AtariSIODirection direction;
 
 
 #ifdef UNUSED
   if (device != FUJI_DEVICEID_FUJINET) {
-    printf("Device  = 0x%02x\n", device);
-    printf("Command = 0x%02x\n", fuji_cmd);
-    printf("Fields  = 0x%02x\n", fields);
-    printf("AUX     = 0x%02x 0x%02x 0x%02x 0x%02x\n", aux1, aux2, aux3, aux4);
-    printf("Buf len = %d\n", buf_length);
-    exit(1);
+    printString("Device  = 0x");
+    printHex(device, 2, '0');
+    printString("\r\n");
+
+    printString("Command = 0x");
+    printHex(fuji_cmd, 2, '0');
+    printString("\r\n");
+
+    printString("Fields  = 0x");
+    printHex(fields, 2, '0');
+    printString("\r\n");
+
+    printString("AUX     = 0x");
+    printHex(aux1, 2, '0');
+    printString(" 0x");
+    printHex(aux2, 2, '0');
+    printString(" 0x");
+    printHex(aux3, 2, '0');
+    printString(" 0x");
+    printHex(aux4, 2, '0');
+    printString("\r\n");
+
+    printString("Buf len = ");
+    printDec(buf_length, 0, 0);
+    printString("\r\n");
   }
 #endif /* UNUSED */
 
@@ -218,37 +233,3 @@ bool fuji_bus_call(uint8_t device, uint8_t fuji_cmd, uint8_t fields,
   direction = fields & FUJI_FIELD_REPLY ? SIO_DIRECTION_READ : SIO_DIRECTION_WRITE;
   return fuji_packet_call(direction, &fb_packet, buf, buf_length);
 }
-
-#if defined(DEBUG) && defined(HEXDUMP)
-#define COLUMNS 16
-
-static void hexdump(void *ptr, int count)
-{
-  int outer, inner;
-  uint8_t c;
-  uint8_t *buffer = (uint8_t *) ptr;
-
-
-  for (outer = 0; outer < count; outer += COLUMNS) {
-    for (inner = 0; inner < COLUMNS; inner++) {
-      if (inner + outer < count) {
-	c = buffer[inner + outer];
-	printf("%02x ", c);
-      }
-      else
-	printf("   ");
-    }
-    printf(" |");
-    for (inner = 0; inner < COLUMNS && inner + outer < count; inner++) {
-      c = buffer[inner + outer];
-      if (c >= ' ' && c <= 0x7f)
-	printf("%c", c);
-      else
-	printf(".");
-    }
-    printf("|\n");
-  }
-
-  return;
-}
-#endif /* HEXDUMP */
