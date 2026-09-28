@@ -212,45 +212,42 @@ patch_one_vector:
         ret
 
 ; ----------------------------------------------------------------
-; find_free_drive - probes the REAL (unpatched) SELDSK for drives
-; 0 through 15; the first one returning HL=0 gets claimed. Result in
-; (free_drive), or $FF if every drive 0-15 is already in use.
+; find_free_drive - probes P&T Special System Function #35
+; for drives 0 through 15. The first drive returning C=2
+; (undefined/not present) gets claimed.
+;
+; Result in (free_drive), or $FF if every drive 0-15 is present.
 ; ----------------------------------------------------------------
 find_free_drive:
-;;         ld b,0
-;; fd_loop:
-;;         push bc
-;;         ld hl,(bios_base)
-;;         ld de,JT_SELDSK
-;;         add hl,de
-;;         inc hl
-;;         ld e,(hl)
-;;         inc hl
-;;         ld d,(hl)               ; DE = the real SELDSK entry address
-;;         pop bc
-;;         push bc
-;;         ld c,b                  ; C = candidate drive number
-;;         ex de,hl                ; HL = SELDSK entry address
-;;         call call_hl
-;;         ld a,h
-;;         or l                    ; test the returned DPH pointer
-;;         pop bc
-;;         jr z,fd_found           ; HL==0 -> unconfigured -> claim it
-;;         ld a,b
-;;         inc a
-;;         cp 16
-;;         jr nc,fd_none
-;;         ld b,a
-;;         jr fd_loop
-;; fd_found:
-;;         ld a,b
-	ld a,3
+        xor a
+        ld (fd_drive),a
+
+fd_loop:
+        ld a,(fd_drive)
+        ld c,a
+        ld b,$23
+        call $40
+
+        ld a,c
+        cp 2
+        jr z,fd_found
+
+        ld a,(fd_drive)
+        inc a
+	ld (fd_drive),a
+        cp 16
+        jr c,fd_loop
+
+        ld a,$ff
         ld (free_drive),a
         ret
-fd_none:
-        ld a,$FF
+
+fd_found:
+        ld a,(fd_drive)
         ld (free_drive),a
         ret
+
+fd_drive:	db 0
 
 ; ----------------------------------------------------------------
 ; call_hl - "call whatever address is in HL" (transient copy for
