@@ -35,8 +35,3 @@ print.o: print.h print.c
 	$(AS) $(ASFLAGS) -o=$@ $<
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
-
-contest.com: contest.asm
-
-secheck.com: secheck.o
-	$(CC) $(CFLAGS) -o $@ $^
